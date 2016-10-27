@@ -1,0 +1,116 @@
+package com.cam.trailrace.navegacion;
+
+import android.app.Activity;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentManager;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.Spinner;
+import android.widget.SpinnerAdapter;
+import android.widget.TextView;
+
+import com.cam.trailrace.R;
+import com.cam.trailrace.adapter.PilotListAdapter;
+import com.cam.trailrace.modelo.Equipo;
+import com.cam.trailrace.modelo.PilotoItem;
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
+
+import java.util.ArrayList;
+
+/**
+ * Created by NicolasForero on 12/09/16.
+ */
+public class TeamFragment extends Fragment {
+
+    private DataCommunication mCallback;
+
+    private EditText teamName;
+    private EditText teamCountry;
+    private Spinner dropDownTeamCategory;
+
+    private TextView buttonSalvarTeam;
+    private Firebase fire;
+
+    public TeamFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+        View rootView = inflater.inflate(R.layout.fragment_team, container, false);
+
+
+        teamName = (EditText) rootView.findViewById(R.id.teamName);
+        teamCountry = (EditText) rootView.findViewById(R.id.teamCountry);
+        dropDownTeamCategory = (Spinner) rootView.findViewById(R.id.spinnerCategory);
+        buttonSalvarTeam = (TextView) rootView.findViewById(R.id.buttonSaveTeam);
+
+        try {
+            mCallback = (DataCommunication) getActivity();
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+        String currentUser=mCallback.darCurrentUser();
+        fire=mCallback.darFire().child("users").child(currentUser).child("team");
+        fire.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                if (snapshot.getValue() != null) {
+                    Equipo equipo = snapshot.getValue(Equipo.class);
+                    teamName.setText(equipo.getNombre());
+                    teamCountry.setText(equipo.getPais());
+                    SpinnerAdapter sp=dropDownTeamCategory.getAdapter();
+                    String [] items= new String[7];
+                    for (int i = 0; i < 7; i++) {
+                        items[i]=(String)sp.getItem(i);
+                    }
+                    for (int i = 0; i < items.length; i++) {
+                        if(equipo.getCategoria().equals(items[i])){
+                            dropDownTeamCategory.setSelection(i);
+                        }
+                    }
+                }
+            }
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+            }
+        });
+
+        buttonSalvarTeam.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                guardarTeam();
+            }
+        });
+        // Inflate the layout for this fragment
+        return rootView;
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+    }
+
+    public void guardarTeam(){
+        String teamNameStr= teamName.getText().toString();
+        String teamCountryStr= teamCountry.getText().toString();
+        String category= (String)dropDownTeamCategory.getSelectedItem();
+        Equipo e= new Equipo(teamNameStr,teamCountryStr,category);
+        fire.setValue(e);
+    }
+}

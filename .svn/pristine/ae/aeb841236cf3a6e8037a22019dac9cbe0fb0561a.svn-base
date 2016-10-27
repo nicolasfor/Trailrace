@@ -1,0 +1,21 @@
+<resources>
+    <!--
+    TODO: Before you run your application, you need a Google Maps API key.
+
+    To get one, follow this link, follow the directions and press "Create" at the end:
+
+    https://console.developers.google.com/flows/enableapi?apiid=maps_android_backend&keyType=CLIENT_SIDE_ANDROID&r=E2:21:C8:4D:C8:F4:7E:B9:1F:0C:61:53:37:5C:E0:A9:B7:B7:98:C4%3Bcom.cam.trailrace
+
+    You can also add your credentials to an existing key, using this line:
+    E2:21:C8:4D:C8:F4:7E:B9:1F:0C:61:53:37:5C:E0:A9:B7:B7:98:C4;com.cam.trailrace
+
+    Alternatively, follow the directions here:
+    https://developers.google.com/maps/documentation/android/start#get-key
+
+    Once you have your key (it starts with "AIza"), replace the "google_maps_key"
+    string in this file.
+    -->
+    <string name="google_maps_key" templateMergeStrategy="preserve" translatable="false">
+        AIzaSyD_Xeu_TRskT8KF2ae4iZG1tNVq-qCRRb8
+    </string>
+</resources>

@@ -1,0 +1,13 @@
+package com.cam.trailrace.navegacion;
+
+import android.content.Intent;
+import android.graphics.drawable.Drawable;
+
+/**
+ * Created by NicolasForero on 12/09/16.
+ */
+public class CropOption {
+    public CharSequence title;
+    public Drawable icon;
+    public Intent appIntent;
+}

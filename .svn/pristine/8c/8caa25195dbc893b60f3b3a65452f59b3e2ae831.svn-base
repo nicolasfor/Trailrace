@@ -1,0 +1,147 @@
+package com.cam.trailrace.actividades;
+
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.design.widget.Snackbar;
+import android.util.Log;
+import android.view.View;
+import android.widget.EditText;
+import android.widget.TextView;
+
+import com.cam.trailrace.R;
+import com.cam.trailrace.modelo.Usuario;
+import com.firebase.client.AuthData;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Created by NicolasForero on 10/09/16.
+ */
+public class SecondActivity extends MainActivity{
+
+
+    private TextView signup;
+    private TextView signin;
+    private TextView fb;
+    private TextView account;
+    private EditText email;
+    private EditText password;
+    private EditText rePassword;
+    private EditText user;
+
+    private View rootView;
+
+    Firebase myFirebaseRef;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        Firebase.setAndroidContext(this);
+        setContentView(R.layout.activity2_main);
+
+        rootView =  findViewById(R.id.crearLayout);
+        myFirebaseRef = new Firebase("https://trailrace.firebaseio.com/");
+
+        signup = (TextView)findViewById(R.id.signup);
+        signin = (TextView)findViewById(R.id.signin);
+        fb = (TextView)findViewById(R.id.fb);
+        account = (TextView)findViewById(R.id.account);
+        email = (EditText)findViewById(R.id.email);
+        password = (EditText)findViewById(R.id.password);
+        rePassword= (EditText)findViewById(R.id.passwordConf);
+        user = (EditText)findViewById(R.id.user);
+
+
+        account.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                registerUser();
+
+            }
+        });
+        signin.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+
+                Intent it = new Intent(SecondActivity.this, MainActivity.class);
+                startActivity(it);
+
+            }
+        });
+
+    }
+
+    public void registerUser(){
+        final String emailTxt=email.getText().toString();
+        final String userTxt=user.getText().toString();
+        final String passwordTxt=password.getText().toString();
+        final String rePasswordTxt=rePassword.getText().toString();
+        Log.i("TAG",emailTxt+"-"+userTxt+"-"+passwordTxt);
+
+        if(!passwordTxt.equals(rePasswordTxt)){
+            Snackbar snackbar = Snackbar
+                    .make(rootView, "Las contraseñas deben coincidir", Snackbar.LENGTH_LONG);
+            snackbar.show();
+            rePassword.setText("");
+        }
+        else {
+            myFirebaseRef.createUser(emailTxt, passwordTxt, new Firebase.ValueResultHandler<Map<String, Object>>() {
+                @Override
+                public void onSuccess(Map<String, Object> result) {
+                    Snackbar snackbar = Snackbar
+                            .make(rootView, "Usuario agregado exitosamente, por favor loguee", Snackbar.LENGTH_LONG);
+                    snackbar.show();
+                    email.setText("");
+                    user.setText("");
+                    password.setText("");
+                    rePassword.setText("");
+                    myFirebaseRef.authWithPassword(emailTxt, passwordTxt,
+                            new Firebase.AuthResultHandler() {
+                                @Override
+                                public void onAuthenticated(AuthData authData) {
+                                    // Authentication just completed successfully :)
+                                    Map<String, String> map = new HashMap<String, String>();
+                                    map.put("name", userTxt);
+                                    myFirebaseRef.child("users").child(authData.getUid()).setValue(map);
+                                }
+
+                                @Override
+                                public void onAuthenticationError(FirebaseError error) {
+                                    // Something went wrong :(
+                                }
+                            });
+
+
+                }
+
+                @Override
+                public void onError(FirebaseError firebaseError) {
+                    // there was an error
+                    Snackbar snackbar = Snackbar
+                            .make(rootView, "No se pudo crear en la DB", Snackbar.LENGTH_LONG);
+                    snackbar.show();
+                }
+            });
+            /*
+            Usuario u= new Usuario(userTxt,emailTxt,passwordTxt);
+            Intent i= new Intent(rootView.getContext(),MainActivity.class);
+            //Bundle b=new Bundle();
+            //b.putSerializable("usuario",u);
+            i.putExtra("usuario",u);
+            Snackbar snackbar = Snackbar
+                    .make(rootView, "Usuario agregado exitosamente, por favor loguee", Snackbar.LENGTH_LONG);
+            snackbar.show();
+            email.setText("");
+            user.setText("");
+            password.setText("");
+            rePassword.setText("");*/
+
+
+        }
+    }
+
+}

@@ -1,0 +1,159 @@
+package com.cam.trailrace.navegacion;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ListView;
+import android.widget.TextView;
+
+import com.cam.trailrace.R;
+import com.cam.trailrace.actividades.NavigationMainActivity;
+import com.cam.trailrace.adapter.PilotListAdapter;
+import com.cam.trailrace.modelo.Piloto;
+import com.cam.trailrace.modelo.PilotoItem;
+import com.firebase.client.ChildEventListener;
+import com.firebase.client.DataSnapshot;
+import com.firebase.client.Firebase;
+import com.firebase.client.FirebaseError;
+import com.firebase.client.ValueEventListener;
+
+import java.util.ArrayList;
+
+/**
+ * Created by NicolasForero on 3/10/16.
+ */
+public class PilotListFragment extends Fragment {
+    private ListView lista;
+    private FragmentActivity fa;
+    private ArrayList<Piloto> pilotosCreados;
+    private ArrayList<PilotoItem> pilotosItem;
+    private TextView agregar;
+    private DataCommunication mCallback;
+    private View rootView;
+
+    public PilotListFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+    }
+
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+
+        fa = super.getActivity();
+        rootView = inflater.inflate(R.layout.fragment_pilot_list, container, false);
+        try {
+            mCallback = (DataCommunication) getActivity();
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+        lista= (ListView)rootView.findViewById(R.id.pilot_list);
+
+        Intent intent = fa.getIntent();
+        //pistasCreadas= ((NavigationMainActivity)super.getActivity()).darPistas();
+        pilotosCreados=new ArrayList<>();
+        pilotosItem=new ArrayList<>();
+        String currentUser=mCallback.darCurrentUser();
+        Firebase nueva=mCallback.darFire().child("users").child(currentUser).child("pilotos");
+        nueva.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                if (snapshot.getValue() == null) {
+                    ArrayList<PilotoItem> pilotos= new ArrayList<>();
+                    pilotos.add(new PilotoItem());
+                    PilotListAdapter m_adapter = new PilotListAdapter(getActivity().getBaseContext(), R.layout.list_item, pilotos);
+                    lista.setAdapter(m_adapter);
+                }
+            }
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+            }
+        });
+        nueva.addChildEventListener(
+                new ChildEventListener() {
+                    @Override
+                    public void onChildAdded(final DataSnapshot dataSnapshot, String s) {
+                        Piloto pis = dataSnapshot.getValue(Piloto.class);
+                        pilotosCreados.add(pis);
+                        PilotoItem pI= new PilotoItem(pis,dataSnapshot.getKey());
+                        pilotosItem.add(pI);
+                        if(pilotosItem.size()>0) {
+
+                            mCallback.agregarPiloto(pilotosCreados);
+                            mCallback.agregarPilotoItem(pilotosItem);
+                            PilotListAdapter m_adapter = new PilotListAdapter(rootView.getContext(), R.layout.list_item, pilotosItem);
+                            lista.setAdapter(m_adapter);
+
+                            lista.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                                @Override
+                                public void onItemClick(AdapterView adapter, View view, int position, long arg) {
+                                    FragmentManager fm = getFragmentManager();
+                                    mCallback.cambiarPosicion(position);
+                                    mCallback.setPilotoAEditar((PilotoItem) adapter.getItemAtPosition(position));
+                                    fm.beginTransaction().replace(R.id.container_body, new PilotFragment()).commit();
+                                }
+                            });
+
+                        }
+                    }
+
+                    @Override
+                    public void onChildChanged(DataSnapshot dataSnapshot, String s) {
+
+                    }
+
+                    @Override
+                    public void onChildRemoved(DataSnapshot dataSnapshot) {
+
+                    }
+
+                    @Override
+                    public void onChildMoved(DataSnapshot dataSnapshot, String s) {
+
+                    }
+
+                    @Override
+                    public void onCancelled(FirebaseError firebaseError) {
+
+                    }
+                }
+        );
+
+        agregar = (TextView) rootView.findViewById(R.id.buttonAgregarListaPiloto);
+
+        agregar.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FragmentManager fm = getFragmentManager();
+                fm.beginTransaction().replace(R.id.container_body, new PilotFragment()).commit();
+            }
+        });
+        // Inflate the layout for this fragment
+        return rootView;
+    }
+
+    @Override
+    public void onAttach(Activity activity) {
+        super.onAttach(activity);
+    }
+
+    @Override
+    public void onDetach() {
+        super.onDetach();
+    }
+}

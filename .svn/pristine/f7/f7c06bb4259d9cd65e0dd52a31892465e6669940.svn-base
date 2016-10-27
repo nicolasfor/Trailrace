@@ -1,0 +1,36 @@
+package com.cam.trailrace.navegacion;
+
+import com.cam.trailrace.modelo.Equipo;
+import com.cam.trailrace.modelo.Piloto;
+import com.cam.trailrace.modelo.PilotoItem;
+import com.cam.trailrace.modelo.Pista;
+import com.cam.trailrace.modelo.PistaItem;
+
+import java.util.ArrayList;
+
+/**
+ * Created by NicolasForero on 16/09/16.
+ */
+public interface DataCommunication {
+
+    public int darPosicion();
+    public void cambiarPosicion(int pos);
+
+    public ArrayList<Pista> darPistas();
+    public void agregarPista(ArrayList<Pista> nuevaPistas);
+
+    public ArrayList<PistaItem> darPistasItem();
+    public void agregarPistaItem(ArrayList<PistaItem> nuevaPistas);
+
+    public ArrayList<Piloto> darPilotos();
+    public void agregarPiloto(ArrayList<Piloto> nuevosPilotos);
+
+    public ArrayList<PilotoItem> darPilotosItem();
+    public void agregarPilotoItem(ArrayList<PilotoItem> nuevosPilotosItem);
+
+    public PilotoItem darPilotoAEditar();
+    public void setPilotoAEditar(PilotoItem piloto);
+
+    public String darCurrentUser();
+
+}

@@ -1,0 +1,67 @@
+<resources>
+    <string name="app_name">Trailrace</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_search">Search</string>
+    <string name="drawer_open">Open</string>
+    <string name="drawer_close">Close</string>
+
+    <string name="nav_item_pilots">Pilots</string>
+    <string name="nav_item_team">Team</string>
+    <string name="nav_item_track">Start</string>
+    <string name="nav_item_signout">Sign out</string>
+
+    <string name="google_maps_key">AIzaSyBdrbtzC-NAPLeKXLpRYFg1PM78pJc5Ib4</string>
+
+
+    <!-- navigation drawer item labels  -->
+    <string-array name="nav_drawer_labels">
+        <item>@string/nav_item_pilots</item>
+        <item>@string/nav_item_team</item>
+        <item>@string/nav_item_track</item>
+        <item>@string/nav_item_signout</item>
+
+    </string-array>
+
+    <string-array name="type_cars_arrays">
+        <item>Hatchback</item>
+        <item>Liftback</item>
+        <item>Sedan</item>
+        <item>Familiar</item>
+        <item>Roadster</item>
+        <item>Gran tourer</item>
+        <item>Super sport</item>
+        <item>Pickup</item>
+        <item>4X4</item>
+        <item>Van</item>
+    </string-array>
+
+    <string-array name="racing_categories">
+        <item>Open wheel</item>
+        <item>Endurance</item>
+        <item>Touring</item>
+        <item>Street</item>
+        <item>Drift</item>
+        <item>Rally</item>
+        <item>Drag</item>
+        <item>Stock</item>
+    </string-array>
+
+
+    <string-array name="nav_drawer_labels1">
+        <item>@string/nav_item_pilots</item>
+        <item>@string/nav_item_team</item>
+        <item>@string/nav_item_track</item>
+        <item>@string/nav_item_signout</item>
+
+
+    </string-array>
+
+    <string name="title_pilots">Pilots</string>
+    <string name="title_team">Team</string>
+    <string name="title_track">Track</string>
+    <string name="title_start">Start</string>
+    <string name="title_signout">Sign Out</string>
+    <string name="title_activity_maps">Map</string>
+
+
+</resources>

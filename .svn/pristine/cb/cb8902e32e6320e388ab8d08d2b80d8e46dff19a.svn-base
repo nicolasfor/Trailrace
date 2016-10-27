@@ -1,0 +1,642 @@
+package com.cam.trailrace.navegacion;
+
+import android.Manifest;
+import android.app.Activity;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.Point;
+import android.location.Criteria;
+import android.location.Location;
+import android.location.LocationManager;
+import android.os.Build;
+import android.os.Bundle;
+import android.os.CountDownTimer;
+import android.os.SystemClock;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.Fragment;
+import android.support.v4.app.FragmentActivity;
+import android.support.v4.app.FragmentManager;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.widget.RecyclerView;
+import android.text.format.DateUtils;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.WindowManager;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
+import android.widget.CheckBox;
+import android.widget.LinearLayout;
+import android.widget.ListAdapter;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
+import android.app.AlertDialog;
+import android.os.Build;
+import com.cam.trailrace.R;
+import com.cam.trailrace.actividades.NavigationMainActivity;
+import com.cam.trailrace.lib.FireBaseHelper;
+import com.cam.trailrace.modelo.Medicion;
+import com.cam.trailrace.modelo.Piloto;
+import com.cam.trailrace.modelo.PilotoItem;
+import com.cam.trailrace.modelo.Pista;
+import com.cam.trailrace.modelo.Punto;
+import com.cam.trailrace.modelo.Sesion;
+import com.cam.trailrace.modelo.Vuelta;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.maps.CameraUpdateFactory;
+import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.Projection;
+import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
+import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.firebase.database.DatabaseReference;
+
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.Formatter;
+import java.util.List;
+import java.util.Locale;
+import java.util.Timer;
+import java.util.TimerTask;
+
+/**
+ * Created by NicolasForero on 13/09/16.
+ */
+public class StartFragment extends Fragment implements OnMapReadyCallback,
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener,
+        LocationListener {
+
+    private static final int DISTANCIA_MINIMA=25;
+
+    private DataCommunication mCallback;
+
+    private GoogleMap mMap;
+    ArrayList<LatLng> MarkerPoints;
+    GoogleApiClient mGoogleApiClient;
+    LocationRequest mLocationRequest;
+    TextView speedometer;
+    private TextView empezarCarrera;
+    private TextView detenerCarrera;
+    private TextView distanciaRecorrida;
+    private TextView bestLapTime;
+    private TextView buttonShowPilots;
+    Chronometer mChronometer;
+    Chronometer tiempoVuelta;
+    private List<Punto> lineas;
+    private Pista pistaActual;
+    private int posicionPista;
+    private PilotoItem pilotoActual;
+    private Vuelta mejorVuelta;
+    private Vuelta vueltaActual;
+    private ArrayList<Vuelta> vueltasDadas;
+    private Sesion sesionActual;
+    private double acumulado;
+    private double acumuladoVuelta;
+    Polyline line;
+    private LatLng puntoAnterior;
+    private LatLng puntoAnterior50;
+    private LatLng[] puntosDos;
+    private TextView tiempoVentaja;
+    private LatLng puntoMarca;
+    private FragmentActivity fa;
+    private boolean empezoCarrera;
+    View rootView;
+    private FireBaseHelper helper;
+
+    public StartFragment() {
+        // Required empty public constructor
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+    }
+
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        fa = super.getActivity();
+        acumulado = 0;
+        acumuladoVuelta = 0;
+        empezoCarrera=false;
+        rootView = inflater.inflate(R.layout.fragment_start, container, false);
+        helper = FireBaseHelper.getInstance();
+        empezarCarrera = (TextView) rootView.findViewById(R.id.buttonStartCarrera);
+        detenerCarrera = (TextView) rootView.findViewById(R.id.buttonDetenerCarrera);
+        Intent intent = fa.getIntent();
+        buttonShowPilots= (TextView) rootView.findViewById(R.id.buttonShowPilots);
+        posicionPista = ((NavigationMainActivity) super.getActivity()).darPosicion();
+        pistaActual=((NavigationMainActivity) super.getActivity()).darPistas().get(posicionPista);
+        lineas = pistaActual.getPuntos();
+        speedometer = (TextView) rootView.findViewById(R.id.speedMeter);
+        tiempoVentaja = (TextView) rootView.findViewById(R.id.tiempoVentaja);
+        bestLapTime = (TextView) rootView.findViewById(R.id.bestLapTime);
+        mChronometer = (Chronometer) rootView.findViewById(R.id.chronometer);
+        tiempoVuelta = (Chronometer) rootView.findViewById(R.id.lapTIme);
+        distanciaRecorrida = (TextView) rootView.findViewById(R.id.distanciaRecorrida);
+        LocationManager locationManager = (LocationManager) fa.getSystemService(Context.LOCATION_SERVICE);
+        vueltaActual = new Vuelta();
+        sesionActual = new Sesion();
+        vueltasDadas= new ArrayList<>();
+        tiempoVuelta.setVisibility(rootView.GONE);
+        tiempoVentaja.setVisibility(rootView.GONE);
+        bestLapTime.setVisibility(rootView.GONE);
+        empezarCarrera.setVisibility(rootView.GONE);
+        distanciaRecorrida.setVisibility(rootView.GONE);
+        detenerCarrera.setVisibility(rootView.GONE);
+        try {
+            mCallback = (DataCommunication) getActivity();
+        } catch (Exception e) {
+
+            e.printStackTrace();
+        }
+        getActivity().getWindow().setSoftInputMode(
+                WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+
+        puntosDos = new LatLng[2];
+        if (lineas.size() > 0) {
+            MarkerPoints = new ArrayList<>();
+
+            // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+            SupportMapFragment mapFragment = ((SupportMapFragment) this.getChildFragmentManager().findFragmentById(R.id.mapStart));
+            mapFragment.getMapAsync(this);
+
+        }
+        else {
+            Toast.makeText(super.getContext(), "Se debe cargar primero la pista", Toast.LENGTH_LONG).show();
+        }
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            checkLocationPermission();
+        }
+
+        buttonShowPilots.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showChoosePilot();
+            }
+        });
+        empezarCarrera.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                empezar();
+            }
+        });
+
+        detenerCarrera.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                terminar();
+            }
+        });
+
+        return rootView;
+    }
+
+    /**
+     * Manipulates the map once available.
+     * This callback is triggered when the map is ready to be used.
+     * This is where we can add markers or lines, add listeners or move the camera. In this case,
+     * we just add a marker near Sydney, Australia.
+     * If Google Play services is not installed on the device, the user will be prompted to install
+     * it inside the SupportMapFragment. This method will only be triggered once the user has
+     * installed Google Play services and returned to the app.
+     */
+    @Override
+    public void onMapReady(GoogleMap googleMap) {
+        mMap = googleMap;
+
+        //Initialize Google Play Services
+        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (ContextCompat.checkSelfPermission(super.getContext(),
+                    Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED) {
+                buildGoogleApiClient();
+                mMap.setMyLocationEnabled(true);
+            }
+        } else {
+            buildGoogleApiClient();
+            mMap.setMyLocationEnabled(true);
+        }
+        LocationManager locationManager = (LocationManager) super.getActivity().getSystemService(super.getContext().LOCATION_SERVICE);
+        Criteria criteria = new Criteria();
+
+        Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(criteria, false));
+        if (location != null) {
+
+            LatLng punto = new LatLng(location.getLatitude(), location.getLongitude());
+            puntoAnterior = punto;
+            puntosDos[0] = puntoAnterior;
+            puntoAnterior50 = puntoAnterior;
+
+
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(location.getLatitude(), location.getLongitude()), 13));
+            CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(location.getLatitude(), location.getLongitude()))
+                    .zoom(17)
+                    .bearing(90)
+                    .tilt(40)
+                    .build();
+            googleMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+
+            mLocationRequest = new LocationRequest();
+            mLocationRequest.setInterval(500);
+            mLocationRequest.setSmallestDisplacement(0.25F);
+            mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        }
+        if (lineas.size() > 0) {
+            redDrawLine(lineas);
+        }
+    }
+
+    protected synchronized void buildGoogleApiClient() {
+        mGoogleApiClient = new GoogleApiClient.Builder(super.getContext())
+                .addConnectionCallbacks(this)
+                .addOnConnectionFailedListener(this)
+                .addApi(LocationServices.API)
+                .build();
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    public void onConnected(Bundle bundle) {
+
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setInterval(1000);
+        mLocationRequest.setFastestInterval(1000);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+        if (ContextCompat.checkSelfPermission(super.getContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                == PackageManager.PERMISSION_GRANTED) {
+            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+        }
+
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+
+        CameraPosition cameraPosition = new CameraPosition.Builder().target(new LatLng(location.getLatitude(), location.getLongitude()))
+                .zoom(17)
+                .bearing(90)
+                .tilt(40)
+                .build();
+        mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
+        // CLocation myLocation = new CLocation(location, this.useMetricUnits());
+        //this.updateSpeed(myLocation);
+        checkSpeed(location);
+        //distancia con punto anterior
+        float[] distanceMinima = new float[2];
+        if(puntoAnterior!=null && puntoAnterior50!=null && empezoCarrera) {
+            Location.distanceBetween(puntoAnterior50.latitude, puntoAnterior50.longitude,
+                    location.getLatitude(), location.getLongitude(), distanceMinima);
+            //capturar la distancia recorrida
+            //si la disancia con el punto anterior es mayor a 25mts entonces entra
+            capturarDatos(distanceMinima, location);
+            evaluarPuntosDiferencia(location);
+        }
+
+    }
+
+    public void showChoosePilot(){
+        final List<PilotoItem> pilotosItem=mCallback.darPilotosItem();
+        if(pilotosItem.size()>0) {
+            ArrayList<String> temps = new ArrayList<>();
+            for (int i = 0; i < pilotosItem.size(); i++) {
+                temps.add(pilotosItem.get(i).getPiloto().getNombre());
+            }
+
+            ArrayAdapter<String> adapter = new ArrayAdapter<String>(rootView.getContext(), android.R.layout.simple_spinner_item, temps);
+            AlertDialog.Builder b = new AlertDialog.Builder(getContext());
+
+                    b.setAdapter( adapter,
+                    new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                            pilotoActual=pilotosItem.get(which);
+                            dialog.dismiss();
+                        }
+                    }).create().show();
+            empezarCarrera.setVisibility(rootView.VISIBLE);
+            buttonShowPilots.setVisibility(rootView.GONE);
+        }
+        else{
+            Toast.makeText(super.getContext(), "Debe crear un piloto para empezar", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    public void checkSpeed(Location location){
+        if ((location.getSpeed() * 3.6) < 5) {
+            Toast.makeText(super.getContext(), "Acelere a mas de 5 km/h", Toast.LENGTH_LONG).show();
+            speedometer.setText("0 km/h");
+        }
+        else {
+            int speed = (int) (location.getSpeed() * 3.6);
+            speedometer.setText(speed + " km/h");
+        }
+    }
+
+    public void evaluarPuntosDiferencia(Location location){
+        if (puntosDos[1] != null) {
+
+            puntosDos[0] = puntosDos[1];
+            puntosDos[1] = new LatLng(location.getLatitude(), location.getLongitude());
+            float[] distance1 = new float[2];
+            float[] distance2 = new float[2];
+            Location.distanceBetween(puntosDos[1].latitude, puntosDos[1].longitude,
+                    puntoMarca.latitude, puntoMarca.longitude, distance1);
+            Location.distanceBetween(puntosDos[0].latitude, puntosDos[0].longitude,
+                    puntoMarca.latitude, puntoMarca.longitude, distance2);
+
+            //si el punto actual se encuentra en el radio del punto inicial
+            if (distance1[0] < 5) {
+                //si el punto anterior esta por fuera del radio, es decir ya dio vuelta.
+                if (distance2[0] > 5) {
+
+                    int ultima = mejorVuelta.getMediciones().size() - 1;
+                    double distanciaDeVuelta=acumuladoVuelta;
+                    vueltaActual.setTiempoRecorrido(darFormatoTiempo(tiempoVuelta.getTimeElapsed()));
+                    vueltasDadas.add(vueltaActual);
+                    //si el tiempo de vuelta actual es mejor que la mejor vuelta anterior, refresquelos
+                    if ( tiempoVuelta.getTimeElapsed() <  Double.parseDouble(mejorVuelta.getMediciones().get(ultima).getTiempo())) {
+                        double timeElapsed = tiempoVuelta.getTimeElapsed();
+                        String tiempoParse = darFormatoTiempo(timeElapsed);
+                        sesionActual.getVueltas().add(vueltaActual);
+                        mejorVuelta = vueltaActual;
+
+                        bestLapTime.setText("Mejor tiempo: " + tiempoParse);
+                    } else {
+                        double timeElapsed2 =  Double.parseDouble(mejorVuelta.getMediciones().get(ultima).getTiempo());
+                        String tiempo2 = darFormatoTiempo(timeElapsed2);
+                        bestLapTime.setText("Mejor tiempo:" + tiempo2);
+                    }
+                    vueltaActual = new Vuelta();
+                    pushDataFirebaseMejorVuelta(mejorVuelta);
+                    bestLapTime.setVisibility(rootView.VISIBLE);
+
+                    acumuladoVuelta = 0;
+                    tiempoVuelta.setBase(SystemClock.elapsedRealtime());
+                    tiempoVuelta.start();
+                }
+            }
+        }
+        else if (puntosDos[1] == null) {
+            puntosDos[1] = new LatLng(location.getLatitude(), location.getLongitude());
+        }
+    }
+    public void capturarDatos(float[] distanceMinima, Location location){
+        if (distanceMinima[0] >= DISTANCIA_MINIMA) {
+            //Crea el punto actual
+            LatLng p = new LatLng(location.getLatitude(), location.getLongitude());
+            //Remplaza el punto anterior
+            puntoAnterior50 = p;
+            //Aumenta el acumulado de la distancia con la distancia entre los dos ultimos puntos
+            acumulado += distanceMinima[0];
+            acumuladoVuelta += distanceMinima[0];
+            //Actualiuza el txt
+            distanciaRecorrida.setText("Distancia recorrida:" + String.format("%.2f", acumulado));
+            distanciaRecorrida.setVisibility(rootView.VISIBLE);
+            //Crea una nueva medicion
+            int speed = (int) (location.getSpeed() * 3.6);
+            String velocidad=speed + " km/h";
+            Medicion m = new Medicion(location.getLatitude()+"", location.getLongitude()+"", acumuladoVuelta+"", darFormatoTiempo(tiempoVuelta.getTimeElapsed()),velocidad);
+            //Agrga la medicion actual a las lista de mediciones de la vuelta
+            vueltaActual.getMediciones().add(m);
+            pushDataFirebaseMedicion(m,vueltaActual.getMediciones().size()-1);
+            //Si existe una mejora vuelta
+            if (mejorVuelta != null) {
+
+                double tiempoDIferencia = darTiempoDiferencia(m, mejorVuelta);
+                String tiempo0 = darFormatoTiempo(tiempoDIferencia);
+                if (tiempoDIferencia != 0) {
+                    if (tiempoDIferencia < 0) {
+                        tiempoVentaja.setTextColor(Color.GREEN);
+                    } else {
+                        tiempoVentaja.setTextColor(Color.RED);
+                    }
+                    tiempoVentaja.setText("Diferencia: " + tiempo0);
+                    tiempoVentaja.setVisibility(rootView.VISIBLE);
+                }
+            }
+            //si la vuelta no existe o la mejor vuelta es igual a la actual
+            else {
+                mejorVuelta = vueltaActual;
+                pushDataFirebaseMejorVuelta(mejorVuelta);
+            }
+        }
+    }
+
+
+    public void redDrawLine(List<Punto> linea) {
+        mMap.clear();
+        PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+        for (int i = 0; i < linea.size(); i++) {
+            LatLng point = new LatLng(Double.parseDouble(linea.get(i).getLatitud()),Double.parseDouble(linea.get(i).getLongitud()));
+            options.add(point);
+        }
+        line = mMap.addPolyline(options);
+        double latitud = Double.parseDouble(pistaActual.getPuntosDeReferencia().get(0).getLatitud());
+        double longitud = Double.parseDouble(pistaActual.getPuntosDeReferencia().get(0).getLongitud());
+        LatLng punto= new LatLng(latitud,longitud);
+        puntoMarca= punto;
+        if (puntoMarca != null) {
+            MarkerOptions optiones = new MarkerOptions();
+            optiones.position(puntoMarca);
+            optiones.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
+            mMap.addMarker(optiones);
+        }
+    }
+
+
+    public double darTiempoDiferencia(Medicion medicionActual, Vuelta mejorVuelta) {
+        double time = 0;
+
+        for (int i = 0; i < mejorVuelta.getMediciones().size(); i++) {
+            //si ha recorrido mas distancia en la mejor vuelta que en la actual
+            double diferenciaDistanciaMediciones = Double.parseDouble(mejorVuelta.getMediciones().get(i).getDistanciaRecorrida()) -  Double.parseDouble(medicionActual.getDistanciaRecorrida());
+            if (diferenciaDistanciaMediciones >= 0) {   //reste el tiempo
+                time =  Double.parseDouble(medicionActual.getTiempo()) -  Double.parseDouble(mejorVuelta.getMediciones().get(i).getTiempo());
+                break;
+            }
+        }
+
+        return time;
+
+    }
+
+    @Override
+    public void onConnectionFailed(ConnectionResult connectionResult) {
+
+    }
+
+    public static final int MY_PERMISSIONS_REQUEST_LOCATION = 99;
+
+    public boolean checkLocationPermission() {
+        if (ContextCompat.checkSelfPermission(super.getContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            // Asking user if explanation is needed
+            if (ActivityCompat.shouldShowRequestPermissionRationale(super.getActivity(),
+                    Manifest.permission.ACCESS_FINE_LOCATION)) {
+
+                // Show an explanation to the user *asynchronously* -- don't block
+                // this thread waiting for the user's response! After the user
+                // sees the explanation, try again to request the permission.
+
+                //Prompt the user once explanation has been shown
+                ActivityCompat.requestPermissions(super.getActivity(),
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION);
+
+
+            } else {
+                // No explanation needed, we can request the permission.
+                ActivityCompat.requestPermissions(super.getActivity(),
+                        new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        MY_PERMISSIONS_REQUEST_LOCATION);
+            }
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           String permissions[], int[] grantResults) {
+        switch (requestCode) {
+            case MY_PERMISSIONS_REQUEST_LOCATION: {
+                // If request is cancelled, the result arrays are empty.
+                if (grantResults.length > 0
+                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                    // permission was granted. Do the
+                    // contacts-related task you need to do.
+                    if (ContextCompat.checkSelfPermission(super.getContext(),
+                            Manifest.permission.ACCESS_FINE_LOCATION)
+                            == PackageManager.PERMISSION_GRANTED) {
+
+                        if (mGoogleApiClient == null) {
+                            buildGoogleApiClient();
+                        }
+                        mMap.setMyLocationEnabled(true);
+                    }
+
+                } else {
+
+                    // Permission denied, Disable the functionality that depends on this permission.
+                    Toast.makeText(super.getContext(), "permission denied", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+
+            // other 'case' lines to check for other permissions this app might request.
+            // You can add here other case statements according to your requirement.
+        }
+    }
+
+
+    public void pushDataFirebaseMedicion(Medicion m, int posicion){
+        DatabaseReference nueva=helper.getVueltaActualReference().child(posicion+"");
+        nueva.setValue(m);
+
+    }
+
+    public void pushDataFirebaseMejorVuelta(Vuelta mejor){
+        DatabaseReference nueva=helper.getMejorVueltaReference();
+        nueva.setValue(mejor);
+
+    }
+
+    public void terminar(){
+        sesionActual.setMejorVuelta(mejorVuelta);
+        sesionActual.setPista(pistaActual);
+        sesionActual.setVueltas(vueltasDadas);
+        String currentUser=mCallback.darCurrentUser();
+       // Firebase nueva =mCallback.darFire().child("users").child(currentUser).child("pilotos").child(pilotoActual.getPilotoId()).child("sesiones").push();
+//        nueva.setValue(sesionActual);
+        empezoCarrera=false;
+
+    }
+    public void empezar() {
+        if (checkLocationPermission()) {
+            LocationManager locationManager = (LocationManager) super.getActivity().getSystemService(super.getContext().LOCATION_SERVICE);
+            Criteria criteria = new Criteria();
+            float[] distance = new float[2];
+            Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(criteria, false));
+            Location.distanceBetween(puntoMarca.latitude, puntoMarca.longitude,
+                    location.getLatitude(), location.getLongitude(), distance);
+           DatabaseReference nueva=helper.getPistaActualReference();
+           nueva.setValue(pistaActual);
+
+            if (distance[0] > 100) {
+                Toast.makeText(super.getContext(), "Para empezar debe ubicarse en el punto de inicio", Toast.LENGTH_LONG).show();
+            } else {
+                empezoCarrera=true;
+                empezarCarrera.setVisibility(rootView.GONE);
+                mChronometer.setBase(SystemClock.elapsedRealtime());
+                mChronometer.start();
+
+                tiempoVuelta.setBase(SystemClock.elapsedRealtime());
+                tiempoVuelta.start();
+                detenerCarrera.setVisibility(rootView.VISIBLE);
+
+            }
+        }
+    }
+
+    public String darFormatoTiempo(double timeElapsed) {
+
+        DecimalFormat df = new DecimalFormat("00");
+        int hours = (int) (timeElapsed / (3600 * 1000));
+        int remaining = (int) (timeElapsed % (3600 * 1000));
+
+        int minutes = (int) (remaining / (60 * 1000));
+        remaining = (int) (remaining % (60 * 1000));
+
+        int seconds = (int) (remaining / 1000);
+        remaining = (int) (remaining % (1000));
+
+        int milliseconds = (int) (((int) timeElapsed % 1000) / 100);
+
+        String text = "";
+
+        if (hours > 0) {
+            text += df.format(hours) + ":";
+        }
+
+        if (minutes < 0 || seconds < 0 || milliseconds < 0) {
+            text = "- ";
+            minutes = (minutes * -1);
+            seconds = (seconds * -1);
+            milliseconds = (milliseconds * -1);
+        }
+        text += df.format(minutes) + ":";
+        text += df.format(seconds) + ":";
+        text += Integer.toString(milliseconds);
+
+        return text;
+    }
+}
